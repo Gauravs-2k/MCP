@@ -6,7 +6,7 @@ import os.path
 import requests
 import json
 
-MESSAGES_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'whatsapp-bridge', 'store', 'messages.db')
+MESSAGES_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'bridge', 'store', 'messages.db')
 WHATSAPP_API_BASE_URL = "http://localhost:3006/api"
 
 @dataclass
