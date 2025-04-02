@@ -264,6 +264,59 @@ func startRESTServer(client *whatsmeow.Client, port int) {
 		})
 	})
 
+	// Handler for connection status
+	http.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"connected": client.IsConnected(),
+		})
+	})
+
+	// Handler for QR code
+	http.HandleFunc("/api/qr", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+
+		if client.IsConnected() {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"error": "Already connected",
+			})
+			return
+		}
+
+		// Create a new QR channel
+		qrChan, _ := client.GetQRChannel(context.Background())
+
+		// Wait for QR code with timeout
+		select {
+		case evt := <-qrChan:
+			if evt.Event == "code" {
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"qr_code": evt.Code,
+				})
+			} else {
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"error": "Failed to generate QR code",
+				})
+			}
+		case <-time.After(30 * time.Second):
+			w.WriteHeader(http.StatusRequestTimeout)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"error": "Timeout waiting for QR code",
+			})
+		}
+	})
+
 	// Start the server
 	serverAddr := fmt.Sprintf(":%d", port)
 	fmt.Printf("Starting REST API server on %s...\n", serverAddr)

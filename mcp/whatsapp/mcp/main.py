@@ -178,6 +178,16 @@ def send_message(
         "message": status_message
     }
 
+@mcp.tool()
+def connect() -> Dict[str, Any]:
+    """Connect to WhatsApp and return connection status or QR code if needed.
+    
+    Returns:
+        A dictionary with connection status and other relevant information
+    """
+    from whatsapp import connect_whatsapp
+    return connect_whatsapp()
+
 if __name__ == "__main__":
     # Initialize and run the server
     mcp.run(transport='stdio')

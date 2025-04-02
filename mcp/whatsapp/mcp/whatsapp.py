@@ -699,3 +699,37 @@ def send_message(recipient: str, message: str) -> Tuple[bool, str]:
         return False, f"Error parsing response: {response.text}"
     except Exception as e:
         return False, f"Unexpected error: {str(e)}"
+
+def connect_whatsapp() -> dict:
+    """Connect to WhatsApp and return connection status.
+    
+    Returns:
+        dict: Contains connection status and QR code if needed
+    """
+    try:
+        # Check if the bridge service is running
+        response = requests.get(f"{WHATSAPP_API_BASE_URL}/status", timeout=5)
+        if response.status_code != 200:
+            return {"connected": False, "error": "Bridge service not available"}
+        
+        status = response.json()
+        
+        if status.get("connected", False):
+            return {"connected": True, "message": "Already connected to WhatsApp"}
+        else:
+            # Get QR code if not connected
+            qr_response = requests.get(f"{WHATSAPP_API_BASE_URL}/qr", timeout=5)
+            if qr_response.status_code == 200:
+                qr_data = qr_response.json()
+                return {
+                    "connected": False, 
+                    "qr_code": qr_data.get("qr_code", ""),
+                    "message": "Please scan the QR code to connect"
+                }
+            else:
+                return {"connected": False, "error": "Failed to get QR code"}
+    
+    except requests.RequestException as e:
+        return {"connected": False, "error": f"Connection error: {str(e)}"}
+    except Exception as e:
+        return {"connected": False, "error": f"Unexpected error: {str(e)}"}

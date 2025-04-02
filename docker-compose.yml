@@ -1,0 +1,23 @@
+version: '3'
+
+services:
+  whatsapp-bridge:
+    build:
+      context: ./mcp/whatsapp/bridge  # Point to directory containing go.mod
+      dockerfile: ../../../Dockerfile.Go
+    ports:
+      - "3006:3006"
+    volumes:
+      - ./mcp/whatsapp/bridge/store:/app/store
+    restart: unless-stopped
+    
+  whatsapp-mcp:
+    build:
+      context: ./mcp/whatsapp/mcp  # Point to Python project directory
+      dockerfile: ../../../Dockerfile.mcp
+    depends_on:
+      - whatsapp-bridge
+    volumes:
+      - ./mcp/whatsapp/mcp:/app
+    environment:
+      - WHATSAPP_API_BASE_URL=http://whatsapp-bridge:3006/api
