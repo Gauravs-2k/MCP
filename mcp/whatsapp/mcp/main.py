@@ -180,10 +180,13 @@ def send_message(
 
 @mcp.tool()
 def connect() -> Dict[str, Any]:
-    """Connect to WhatsApp and return connection status or QR code if needed.
+    """Connect to WhatsApp and show QR code if needed for authentication.
+    
+    This will initiate a connection to WhatsApp and return connection status.
+    If not connected, it will show a QR code that you need to scan with your phone.
     
     Returns:
-        A dictionary with connection status and other relevant information
+        A dictionary with connection status and QR code if needed
     """
     from whatsapp import connect_whatsapp
     return connect_whatsapp()

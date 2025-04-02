@@ -7,8 +7,7 @@ import requests
 import json
 
 MESSAGES_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'bridge', 'store', 'messages.db')
-WHATSAPP_API_BASE_URL = "http://localhost:3006/api"
-
+WHATSAPP_API_BASE_URL = os.environ.get("WHATSAPP_API_BASE_URL", "http://localhost:3006/api")
 @dataclass
 class Message:
     timestamp: datetime
@@ -701,35 +700,73 @@ def send_message(recipient: str, message: str) -> Tuple[bool, str]:
         return False, f"Unexpected error: {str(e)}"
 
 def connect_whatsapp() -> dict:
-    """Connect to WhatsApp and return connection status.
+    """Connect to WhatsApp and return connection status or QR code.
     
     Returns:
         dict: Contains connection status and QR code if needed
     """
     try:
         # Check if the bridge service is running
-        response = requests.get(f"{WHATSAPP_API_BASE_URL}/status", timeout=5)
+        response = requests.get(f"{WHATSAPP_API_BASE_URL}/status", timeout=10)
         if response.status_code != 200:
-            return {"connected": False, "error": "Bridge service not available"}
+            return {
+                "connected": False, 
+                "error": f"Bridge service returned status code {response.status_code}"
+            }
         
         status = response.json()
         
         if status.get("connected", False):
-            return {"connected": True, "message": "Already connected to WhatsApp"}
-        else:
-            # Get QR code if not connected
-            qr_response = requests.get(f"{WHATSAPP_API_BASE_URL}/qr", timeout=5)
-            if qr_response.status_code == 200:
-                qr_data = qr_response.json()
+            return {
+                "connected": True, 
+                "message": "Already connected to WhatsApp"
+            }
+        
+        # Not connected, initiate connection and get QR code
+        print("Requesting QR code from WhatsApp bridge...")
+        qr_response = requests.get(f"{WHATSAPP_API_BASE_URL}/qr", timeout=30)
+        
+        if qr_response.status_code != 200:
+            return {
+                "connected": False, 
+                "error": f"Failed to get QR code: {qr_response.text}"
+            }
+        
+        try:
+            qr_data = qr_response.json()
+            
+            if "qr_code" in qr_data:
+                # Successfully retrieved QR code
+                qr_code = qr_data.get("qr_code", "")
+                
+                # Print QR code to terminal for direct use
+                print("\nScan this QR code with your WhatsApp app:")
+                print(qr_code)
+                
                 return {
                     "connected": False, 
-                    "qr_code": qr_data.get("qr_code", ""),
-                    "message": "Please scan the QR code to connect"
+                    "qr_code": qr_code,
+                    "message": "Please scan the QR code with your WhatsApp"
                 }
             else:
-                return {"connected": False, "error": "Failed to get QR code"}
+                return {
+                    "connected": False, 
+                    "error": f"QR response did not contain qr_code: {qr_data}"
+                }
+                
+        except json.JSONDecodeError:
+            return {
+                "connected": False, 
+                "error": f"Invalid JSON in QR response: {qr_response.text}"
+            }
     
     except requests.RequestException as e:
-        return {"connected": False, "error": f"Connection error: {str(e)}"}
+        return {
+            "connected": False, 
+            "error": f"Connection error: {str(e)}"
+        }
     except Exception as e:
-        return {"connected": False, "error": f"Unexpected error: {str(e)}"}
+        return {
+            "connected": False, 
+            "error": f"Unexpected error: {str(e)}"
+        }
